@@ -1,29 +1,19 @@
-// src/server.ts
-import "dotenv/config";
-import express, { Request, Response } from "express";
-import { neon, NeonQueryFunction } from "@neondatabase/serverless";
+import express from "express";
+import cors from "cors";
+import { db } from "./config/db.js";
 
-// Create Express app
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Neon query function
-if (!process.env.DATABASE_URL) throw new Error("Missing DATABASE_URL");
-const sql: NeonQueryFunction<false, false> = neon(process.env.DATABASE_URL);
-
-// Test route
-app.get("/", async (_req: Request, res: Response) => {
+app.get("/", async (_req, res) => {
   try {
-    const result = await sql`SELECT version()`;
-    const { version } = result[0] as { version: string };
-    res.send(`DB Version: ${version}`);
+    const result = await db.execute(`SELECT 1 AS test;`);
+    res.json({ result });
   } catch (err) {
     console.error(err);
     res.status(500).send("Database query failed");
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+export default app;
