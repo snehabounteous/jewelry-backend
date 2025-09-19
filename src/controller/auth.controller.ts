@@ -23,10 +23,23 @@ export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
     const { user, accessToken, refreshToken } = await authService.loginUser(email, password);
-    res.json({ 
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }, 
-      accessToken, 
-      refreshToken 
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict", 
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
+    });
+
+    
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      accessToken,
     });
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -60,5 +73,38 @@ export async function refreshToken(req: Request, res: Response) {
     } else {
       res.status(401).json({ error: "Invalid refresh token" });
     }
+  }
+}
+export async function getCurrentUser(req: Request, res: Response) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1]; 
+    if (!token) {
+      return res.status(401).json({ error: "Malformed token" });
+    }
+
+    const decoded: any = authService.verifyAccessToken(token); 
+    const userId = decoded.id;
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return res.status(401).json({ error: err.message });
+    }
+    return res.status(401).json({ error: "Invalid token" });
   }
 }
