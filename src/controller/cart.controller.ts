@@ -75,3 +75,13 @@ export async function clearCart(req: AuthRequest, res: Response) {
     }
   }
 }
+
+export async function reduceItem(req: AuthRequest, res: Response) {
+  try {
+    const { product_id, quantity } = req.body;
+    const result = await cartService.reduceCartItem(req.user!.id, product_id, quantity || 1);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}

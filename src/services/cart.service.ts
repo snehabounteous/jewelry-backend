@@ -112,3 +112,43 @@ export async function clearCart(userId: string) {
   const deleted = await db.delete(cart_items).where(eq(cart_items.cart_id, cart.id)).returning().execute();
   return deleted;
 }
+
+export async function reduceCartItem(userId: string, productId: string, quantity: number) {
+  if (quantity <= 0) throw new Error("Quantity to reduce must be greater than zero");
+
+  // Get the user's cart
+  const cartResult = await db.select().from(carts).where(eq(carts.user_id, userId)).execute();
+  const cart = cartResult[0];
+  if (!cart) throw new Error("Cart not found");
+
+  // Get the cart item
+  const itemResult = await db
+    .select()
+    .from(cart_items)
+    .where(and(eq(cart_items.cart_id, cart.id), eq(cart_items.product_id, productId)))
+    .execute();
+  const item = itemResult[0];
+  if (!item) throw new Error("Item not found in cart");
+
+  // Calculate new quantity
+  const newQuantity = item.quantity - quantity;
+
+  if (newQuantity > 0) {
+    // Update the quantity
+    const updated = await db
+      .update(cart_items)
+      .set({ quantity: newQuantity })
+      .where(eq(cart_items.id, item.id))
+      .returning()
+      .execute();
+    return updated[0];
+  } else {
+    // Remove the item if quantity drops to zero or below
+    const deleted = await db
+      .delete(cart_items)
+      .where(eq(cart_items.id, item.id))
+      .returning()
+      .execute();
+    return deleted[0];
+  }
+}

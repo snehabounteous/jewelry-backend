@@ -8,5 +8,7 @@ router.get("/", authenticate, cartController.getCart);
 router.post("/add", authenticate, cartController.addItem);
 router.delete("/remove/:productId", authenticate, cartController.removeItem);
 router.delete("/clear", authenticate, cartController.clearCart);
+router.post("/reduce", authenticate, cartController.reduceItem);
+
 
 export default router;
