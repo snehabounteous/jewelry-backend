@@ -7,6 +7,7 @@ import cartRoutes from "./routes/cart.routes.js";
 import wishlistRoutes from "./routes/wishlist.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js"
 import orderRoutes from "./routes/order.routes.js"
+import reviewRoutes from "./routes/review.routes.js"
 
 const app = express();
 app.use(
@@ -24,6 +25,7 @@ app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/wishlist", wishlistRoutes);
 app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/order", orderRoutes);
+app.use("/api/v1/review", reviewRoutes);
 
 app.get("/", async (_req, res) => {
   try {
