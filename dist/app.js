@@ -1,28 +1,27 @@
-// src/server.ts
-import "dotenv/config";
 import express from "express";
-import { neon } from "@neondatabase/serverless";
-// Create Express app
+import cors from "cors";
+import { db } from "./config/db.js";
+import authRoutes from "./routes/auth.routes.js";
+import productRoutes from "./routes/product.routes.js";
+import cartRoutes from "./routes/cart.routes.js";
 const app = express();
-// Neon query function
-if (!process.env.DATABASE_URL)
-    throw new Error("Missing DATABASE_URL");
-const sql = neon(process.env.DATABASE_URL);
-// Test route
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+}));
+app.use(express.json());
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/products", productRoutes);
+app.use("/api/v1/cart", cartRoutes);
 app.get("/", async (_req, res) => {
     try {
-        const result = await sql `SELECT version()`;
-        const { version } = result[0];
-        res.send(`DB Version: ${version}`);
+        const result = await db.execute(`SELECT 1 AS test;`);
+        res.json({ result });
     }
     catch (err) {
         console.error(err);
         res.status(500).send("Database query failed");
     }
 });
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-    console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+export default app;
 //# sourceMappingURL=app.js.map

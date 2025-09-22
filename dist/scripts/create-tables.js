@@ -7,6 +7,7 @@ import { orders } from "../models/orders.model.js";
 import { orderItems } from "../models/orderItems.model.js";
 import { coupons } from "../models/coupons.model.js";
 import { orderCoupons } from "../models/orderCoupons.model.js";
+import { carts, cart_items } from "../models/cart.model.js";
 import { sql } from "drizzle-orm";
 async function main() {
     try {
@@ -19,6 +20,8 @@ async function main() {
             orderItems,
             coupons,
             orderCoupons,
+            carts,
+            cart_items,
         ];
         for (const table of tables) {
             await db.execute(sql `CREATE TABLE IF NOT EXISTS ${table}`);
