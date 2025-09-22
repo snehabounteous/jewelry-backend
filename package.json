@@ -10,7 +10,8 @@
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "format": "prettier --write 'src/**/*.{ts,js,json,md}'",
-    "db-test": "node --loader ts-node/esm src/scripts/test-db.ts"
+    "db-test": "node --loader ts-node/esm src/scripts/test-db.ts",
+    "db:push": "tsc && npx drizzle-kit push"
   },
   "keywords": [],
   "author": "",
