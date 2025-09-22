@@ -75,6 +75,7 @@ export async function clearCart(req: AuthRequest, res: Response) {
     }
   }
 }
+
 export async function reduceItem(req: AuthRequest, res: Response) {
   try {
     const { product_id, quantity } = req.body;

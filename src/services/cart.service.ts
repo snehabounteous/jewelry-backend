@@ -112,6 +112,7 @@ export async function clearCart(userId: string) {
   const deleted = await db.delete(cart_items).where(eq(cart_items.cart_id, cart.id)).returning().execute();
   return deleted;
 }
+
 export async function reduceCartItem(userId: string, productId: string, quantity: number) {
   if (quantity <= 0) throw new Error("Quantity to reduce must be greater than zero");
 
