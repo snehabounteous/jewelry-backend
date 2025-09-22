@@ -26,7 +26,7 @@ export declare const orders: import("drizzle-orm/pg-core").PgTableWithColumns<{
             columnType: "PgUUID";
             data: string;
             driverParam: string;
-            notNull: false;
+            notNull: true;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
