@@ -6,6 +6,7 @@ import productRoutes from "./routes/product.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import wishlistRoutes from "./routes/wishlist.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 const app = express();
 app.use(cors({
     origin: "http://localhost:3000",
@@ -17,6 +18,7 @@ app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/wishlist", wishlistRoutes);
 app.use("/api/v1/categories", categoriesRoutes);
+app.use("/api/v1/order", orderRoutes);
 app.get("/", async (_req, res) => {
     try {
         const result = await db.execute(`SELECT 1 AS test;`);
