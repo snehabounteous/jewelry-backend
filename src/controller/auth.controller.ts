@@ -52,7 +52,7 @@ export async function login(req: Request, res: Response) {
 
 export async function refreshToken(req: Request, res: Response) {
   try {
-    const { token } = req.body;
+    const token = req.cookies.refreshToken;
     if (!token) return res.status(400).json({ error: "Refresh token required" });
 
     const decoded: any = authService.verifyRefreshToken(token);
@@ -106,5 +106,23 @@ export async function getCurrentUser(req: Request, res: Response) {
       return res.status(401).json({ error: err.message });
     }
     return res.status(401).json({ error: "Invalid token" });
+  }
+}
+export async function logout(req: Request, res: Response) {
+  try {
+    // clear refresh token cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    res.json({ message: "Logged out successfully" });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: "Unknown error" });
+    }
   }
 }
