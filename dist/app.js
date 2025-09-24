@@ -3,10 +3,11 @@ import cors from "cors";
 import { db } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
-<<<<<<< HEAD
 import cartRoutes from "./routes/cart.routes.js";
 import wishlistRoutes from "./routes/wishlist.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
+import orderRoutes from "./routes/order.routes.js";
+import searchFilterRoutes from "./routes/search_filter.routes.js";
 const app = express();
 app.use(cors({
     origin: "http://localhost:3000",
@@ -17,15 +18,9 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/wishlist", wishlistRoutes);
-=======
-import categoriesRoutes from "./routes/categories.routes.js";
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/products", productRoutes);
->>>>>>> eace079375ef62641a6ace14e176e174352b2730
 app.use("/api/v1/categories", categoriesRoutes);
+app.use("/api/v1/order", orderRoutes);
+app.use("/api/v1/search", searchFilterRoutes);
 app.get("/", async (_req, res) => {
     try {
         const result = await db.execute(`SELECT 1 AS test;`);
