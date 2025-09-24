@@ -44,7 +44,27 @@ export type OrderInsertType = {
   shipping_cost: string;
 };
 
-export async function placeOrder(userId: string): Promise<OrderResult> {
+export async function placeOrder(
+  userId: string,
+  options: {
+    addressId?: string;
+    contact?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
+    shipping?: {
+      address: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    shippingMethod?: string;
+    shippingCost?: number;
+  }
+): Promise<OrderResult> {
   return db.transaction(async (tx) => {
     // 1️⃣ Get user's cart
     const cartResult = await tx
@@ -62,7 +82,6 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
       .leftJoin(products, eq(cart_items.product_id, products.id))
       .where(eq(cart_items.cart_id, cart.id))
       .execute();
-
     if (itemsResult.length === 0) throw new Error("Cart is empty");
 
     // 3️⃣ Check stock and calculate total
@@ -86,15 +105,53 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         .execute();
     }
 
-    // 5️⃣ Get user's default shipping address
-    const addressResult = await tx
-      .select()
-      .from(addresses)
-      .where(eq(addresses.user_id, userId))
-      .limit(1)
-      .execute();
-    const address = addressResult[0];
-    if (!address) throw new Error("No shipping address found");
+    // 5️⃣ Determine shipping address
+    let address;
+    if (options.addressId) {
+      const addressResult = await tx
+        .select()
+        .from(addresses)
+        .where(eq(addresses.id, options.addressId))
+        .limit(1)
+        .execute();
+      if (!addressResult[0]) {
+        // fallback to shipping info if provided
+        if (options.contact && options.shipping) {
+          address = {
+            id: "temp",
+            first_name: options.contact.firstName,
+            last_name: options.contact.lastName,
+            email: options.contact.email,
+            phone: options.contact.phone,
+            street_address: options.shipping.address,
+            city: options.shipping.city,
+            state: options.shipping.state,
+            zip: options.shipping.zip,
+            country: options.shipping.country,
+          };
+        } else {
+          throw new Error("Address not found and no shipping info provided");
+        }
+      } else {
+        address = addressResult[0];
+      }
+    } else if (options.contact && options.shipping) {
+      // If no addressId, use frontend-provided data
+      address = {
+        id: "temp",
+        first_name: options.contact.firstName,
+        last_name: options.contact.lastName,
+        email: options.contact.email,
+        phone: options.contact.phone,
+        street_address: options.shipping.address,
+        city: options.shipping.city,
+        state: options.shipping.state,
+        zip: options.shipping.zip,
+        country: options.shipping.country,
+      };
+    } else {
+      throw new Error("No shipping information provided");
+    }
 
     // 6️⃣ Insert order
     const orderValues: OrderInsertType = {
@@ -113,8 +170,8 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
       zip: address.zip,
       country: address.country,
 
-      shipping_method: "standard", // replace if frontend passes this
-      shipping_cost: "50", // numeric as string
+      shipping_method: options.shippingMethod || "standard",
+      shipping_cost: (options.shippingCost || 0).toString(),
     };
 
     const insertedOrders = await tx
@@ -137,13 +194,12 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         .execute();
     }
 
-    // 8️⃣ Clear cart items
+    // 8️⃣ Clear cart
     await tx
       .delete(cart_items)
       .where(eq(cart_items.cart_id, cart.id))
       .execute();
 
-    // 9️⃣ Return result
     return { order_id: order.id, total_amount: totalAmount.toString() };
   });
 }
@@ -151,7 +207,25 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
 export async function buyNow(
   userId: string,
   productId: string,
-  quantity: number
+  quantity: number,
+  options: {
+    addressId?: string;
+    contact?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
+    shipping?: {
+      address: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    shippingMethod?: string;
+    shippingCost?: number;
+  }
 ): Promise<OrderResult> {
   return db.transaction(async (tx) => {
     // 1️⃣ Get product
@@ -174,15 +248,33 @@ export async function buyNow(
       .where(eq(products.id, product.id))
       .execute();
 
-    // 3️⃣ Get user's default shipping address
-    const addressResult = await tx
-      .select()
-      .from(addresses)
-      .where(eq(addresses.user_id, userId))
-      .limit(1)
-      .execute();
-    const address = addressResult[0];
-    if (!address) throw new Error("No shipping address found");
+    // 3️⃣ Determine shipping address
+    let address;
+    if (options.addressId) {
+      const addressResult = await tx
+        .select()
+        .from(addresses)
+        .where(eq(addresses.id, options.addressId))
+        .limit(1)
+        .execute();
+      address = addressResult[0];
+      if (!address) throw new Error("Address not found");
+    } else if (options.contact && options.shipping) {
+      address = {
+        id: "temp",
+        first_name: options.contact.firstName,
+        last_name: options.contact.lastName,
+        email: options.contact.email,
+        phone: options.contact.phone,
+        street_address: options.shipping.address,
+        city: options.shipping.city,
+        state: options.shipping.state,
+        zip: options.shipping.zip,
+        country: options.shipping.country,
+      };
+    } else {
+      throw new Error("No shipping information provided");
+    }
 
     // 4️⃣ Insert order
     const orderValues: OrderInsertType = {
@@ -201,8 +293,8 @@ export async function buyNow(
       zip: address.zip,
       country: address.country,
 
-      shipping_method: "standard", // replace if frontend provides this
-      shipping_cost: "50", // example cost as string
+      shipping_method: options.shippingMethod || "standard",
+      shipping_cost: (options.shippingCost || 0).toString(),
     };
 
     const insertedOrders = await tx
