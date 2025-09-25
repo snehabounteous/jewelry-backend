@@ -51,4 +51,18 @@ export class ProductController {
       res.status(500).json({ message: "Error deleting product", error: err });
     }
   }
+  static async getProductsByCategory(req: Request, res: Response) {
+    try {
+      const { categoryId } = req.params;
+      if (!categoryId) {
+        return res.status(400).json({ message: "Category ID is required" });
+      }
+
+      const products = await ProductService.getProductsByCategory(categoryId);
+      return res.status(200).json(products);
+    } catch (err) {
+      console.error("Error fetching products by category:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }

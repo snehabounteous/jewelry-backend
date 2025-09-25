@@ -112,4 +112,26 @@ export class ProductService {
 
     return deleted;
   }
+
+  static async getProductsByCategory(categoryId: string) {
+  // Get all products in this category
+  const productRows = await db
+    .select()
+    .from(products)
+    .where(eq(products.category_id, categoryId));
+
+  // Fetch images for each product
+  const productsWithImages = await Promise.all(
+    productRows.map(async (product) => {
+      const images = await db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.product_id, product.id));
+      return { ...product, images };
+    })
+  );
+
+  return productsWithImages;
 }
+}
+
