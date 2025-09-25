@@ -25,4 +25,3 @@ export const orders = pgTable("orders", {
     created_at: timestamp("created_at").defaultNow(),
     updated_at: timestamp("updated_at").defaultNow(),
 });
-//# sourceMappingURL=orders.model.js.map
