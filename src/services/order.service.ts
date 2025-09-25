@@ -6,6 +6,29 @@ import { products } from "../models/products.model.js";
 import { eq, and } from "drizzle-orm";
 import { addresses } from "../models/address.model.js";
 
+
+export type PlaceOrderPayload = {
+  userId: string;
+  options: {
+    addressId?: string;
+    contact?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
+    shipping?: {
+      address: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    shippingMethod: string;
+    shippingCost: number;
+  };
+};
+
 export type OrderResult = {
   order_id: string;
   total_amount: string;
@@ -25,26 +48,9 @@ export type UserOrder = {
   }[];
 };
 
-export type OrderInsertType = {
-  user_id: string;
-  address_id: string;
-  total_amount: string;
-  status?: string;
+export async function placeOrder(payload: PlaceOrderPayload) {
+  const { userId, options } = payload;
 
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  street_address: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-  shipping_method: string;
-  shipping_cost: string;
-};
-
-export async function placeOrder(userId: string): Promise<OrderResult> {
   return db.transaction(async (tx) => {
     // 1️⃣ Get user's cart
     const cartResult = await tx
@@ -55,7 +61,7 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
     const cart = cartResult[0];
     if (!cart) throw new Error("Cart is empty");
 
-    // 2️⃣ Get cart items with product info
+    // 2️⃣ Get cart items
     const itemsResult = await tx
       .select()
       .from(cart_items)
@@ -65,7 +71,7 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
 
     if (itemsResult.length === 0) throw new Error("Cart is empty");
 
-    // 3️⃣ Check stock and calculate total
+    // 3️⃣ Calculate total & check stock
     let totalAmount = 0;
     for (const row of itemsResult) {
       if (!row.products)
@@ -75,6 +81,9 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         throw new Error(`Insufficient stock for ${row.products.name}`);
       totalAmount += Number(row.products.price) * row.cart_items.quantity;
     }
+
+    // Add shipping cost
+    totalAmount += options.shippingCost;
 
     // 4️⃣ Deduct stock
     for (const row of itemsResult) {
@@ -86,43 +95,65 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         .execute();
     }
 
-    // 5️⃣ Get user's default shipping address
-    const addressResult = await tx
-      .select()
-      .from(addresses)
-      .where(eq(addresses.user_id, userId))
-      .limit(1)
-      .execute();
-    const address = addressResult[0];
-    if (!address) throw new Error("No shipping address found");
+    // 5️⃣ Determine address
+    let address;
+    if (options.addressId) {
+      // Existing address
+      const addressResult = await tx
+        .select()
+        .from(addresses)
+        .where(eq(addresses.id, options.addressId))
+        .execute();
+      address = addressResult[0];
+      if (!address) throw new Error("Address not found");
+    } else if (options.contact && options.shipping) {
+      // New address
+      const inserted = await tx
+        .insert(addresses)
+        .values({
+          user_id: userId,
+          first_name: options.contact.firstName,
+          last_name: options.contact.lastName,
+          email: options.contact.email,
+          phone: options.contact.phone,
+          street_address: options.shipping.address,
+          city: options.shipping.city,
+          state: options.shipping.state,
+          zip: options.shipping.zip,
+          country: options.shipping.country,
+          is_default: false,
+        })
+        .returning()
+        .execute();
+      address = inserted[0];
+    } else {
+      throw new Error("No shipping information provided");
+    }
 
-    // 6️⃣ Insert order
-    const orderValues: OrderInsertType = {
-      user_id: userId,
-      address_id: address.id,
-      total_amount: totalAmount.toString(),
-      status: "pending",
-
-      first_name: address.first_name,
-      last_name: address.last_name,
-      email: address.email,
-      phone: address.phone,
-      street_address: address.street_address,
-      city: address.city,
-      state: address.state,
-      zip: address.zip,
-      country: address.country,
-
-      shipping_method: "standard", // replace if frontend passes this
-      shipping_cost: "50", // numeric as string
-    };
-
-    const insertedOrders = await tx
+    // 6️⃣ Insert order with snapshot
+    const [order] = await tx
       .insert(orders)
-      .values(orderValues)
+      .values({
+        user_id: userId,
+        address_id: address.id,
+        total_amount: totalAmount.toString(),
+        status: "pending",
+
+        first_name: address.first_name,
+        last_name: address.last_name,
+        email: address.email,
+        phone: address.phone,
+        street_address: address.street_address,
+        city: address.city,
+        state: address.state,
+        zip: address.zip,
+        country: address.country,
+
+        shipping_method: options.shippingMethod,
+        shipping_cost: options.shippingCost.toString(),
+      })
       .returning()
       .execute();
-    const order = insertedOrders[0];
 
     // 7️⃣ Insert order items
     for (const row of itemsResult) {
@@ -137,13 +168,12 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         .execute();
     }
 
-    // 8️⃣ Clear cart items
+    // 8️⃣ Clear cart
     await tx
       .delete(cart_items)
       .where(eq(cart_items.cart_id, cart.id))
       .execute();
 
-    // 9️⃣ Return result
     return { order_id: order.id, total_amount: totalAmount.toString() };
   });
 }
@@ -151,46 +181,56 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
 export async function buyNow(
   userId: string,
   productId: string,
-  quantity: number
+  quantity: number,
+  options: PlaceOrderPayload["options"]
 ): Promise<OrderResult> {
   return db.transaction(async (tx) => {
     // 1️⃣ Get product
-    const productResult = await tx
-      .select()
-      .from(products)
-      .where(eq(products.id, productId))
-      .execute();
+    const productResult = await tx.select().from(products).where(eq(products.id, productId)).execute();
     const product = productResult[0];
     if (!product) throw new Error("Product not found");
-    if ((product.stock ?? 0) < quantity)
-      throw new Error(`Insufficient stock for ${product.name}`);
+    if ((product.stock ?? 0) < quantity) throw new Error(`Insufficient stock for ${product.name}`);
 
-    const totalAmount = Number(product.price) * quantity;
+    const totalAmount = Number(product.price) * quantity + options.shippingCost;
 
     // 2️⃣ Deduct stock
-    await tx
-      .update(products)
-      .set({ stock: (product.stock ?? 0) - quantity })
-      .where(eq(products.id, product.id))
-      .execute();
+    await tx.update(products).set({ stock: (product.stock ?? 0) - quantity }).where(eq(products.id, product.id)).execute();
 
-    // 3️⃣ Get user's default shipping address
-    const addressResult = await tx
-      .select()
-      .from(addresses)
-      .where(eq(addresses.user_id, userId))
-      .limit(1)
-      .execute();
-    const address = addressResult[0];
-    if (!address) throw new Error("No shipping address found");
+    // 3️⃣ Determine address
+    let address;
+    if (options.addressId) {
+      const addr = await tx.select().from(addresses).where(eq(addresses.id, options.addressId)).execute();
+      address = addr[0];
+      if (!address) throw new Error("Address not found");
+    } else if (options.contact && options.shipping) {
+      const inserted = await tx
+        .insert(addresses)
+        .values({
+          user_id: userId,
+          first_name: options.contact.firstName,
+          last_name: options.contact.lastName,
+          email: options.contact.email,
+          phone: options.contact.phone,
+          street_address: options.shipping.address,
+          city: options.shipping.city,
+          state: options.shipping.state,
+          zip: options.shipping.zip,
+          country: options.shipping.country,
+          is_default: false,
+        })
+        .returning()
+        .execute();
+      address = inserted[0];
+    } else {
+      throw new Error("No shipping information provided");
+    }
 
     // 4️⃣ Insert order
-    const orderValues: OrderInsertType = {
+    const [order] = await tx.insert(orders).values({
       user_id: userId,
       address_id: address.id,
       total_amount: totalAmount.toString(),
       status: "pending",
-
       first_name: address.first_name,
       last_name: address.last_name,
       email: address.email,
@@ -200,54 +240,35 @@ export async function buyNow(
       state: address.state,
       zip: address.zip,
       country: address.country,
-
-      shipping_method: "standard", // replace if frontend provides this
-      shipping_cost: "50", // example cost as string
-    };
-
-    const insertedOrders = await tx
-      .insert(orders)
-      .values(orderValues)
-      .returning()
-      .execute();
-    const order = insertedOrders[0];
+      shipping_method: options.shippingMethod,
+      shipping_cost: options.shippingCost.toString(),
+    }).returning().execute();
 
     // 5️⃣ Insert order item
-    await tx
-      .insert(orderItems)
-      .values({
-        order_id: order.id,
-        product_id: product.id,
-        quantity,
-        price: product.price,
-      })
-      .execute();
+    await tx.insert(orderItems).values({
+      order_id: order.id,
+      product_id: product.id,
+      quantity,
+      price: product.price,
+    }).execute();
 
     return { order_id: order.id, total_amount: totalAmount.toString() };
   });
 }
 
-export async function getUserOrders(userId: string): Promise<UserOrder[]> {
-  const ordersResult = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.user_id, userId))
-    .execute();
 
+export async function getUserOrders(userId: string): Promise<UserOrder[]> {
+  const ordersResult = await db.select().from(orders).where(eq(orders.user_id, userId)).execute();
   const result: UserOrder[] = [];
+
   for (const order of ordersResult) {
-    const itemsResult = await db
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.order_id, order.id))
-      .execute();
-    const items = itemsResult.map((item) => ({
+    const itemsResult = await db.select().from(orderItems).where(eq(orderItems.order_id, order.id)).execute();
+    const items = itemsResult.map(item => ({
       id: item.id,
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
     }));
-
     result.push({
       id: order.id,
       total_amount: order.total_amount,
@@ -257,28 +278,17 @@ export async function getUserOrders(userId: string): Promise<UserOrder[]> {
       items,
     });
   }
+
   return result;
 }
-export async function getOrderById(
-  userId: string,
-  orderId: string
-): Promise<UserOrder | null> {
-  const orderResult = await db
-    .select()
-    .from(orders)
-    .where(and(eq(orders.id, orderId), eq(orders.user_id, userId)))
-    .execute();
 
+export async function getOrderById(userId: string, orderId: string): Promise<UserOrder | null> {
+  const orderResult = await db.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.user_id, userId))).execute();
   const order = orderResult[0];
   if (!order) return null;
 
-  const itemsResult = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.order_id, order.id))
-    .execute();
-
-  const items = itemsResult.map((item) => ({
+  const itemsResult = await db.select().from(orderItems).where(eq(orderItems.order_id, order.id)).execute();
+  const items = itemsResult.map(item => ({
     id: item.id,
     product_id: item.product_id,
     quantity: item.quantity,
@@ -295,65 +305,26 @@ export async function getOrderById(
   };
 }
 
-export async function cancelOrder(
-  userId: string,
-  orderId: string
-): Promise<UserOrder> {
+export async function cancelOrder(userId: string, orderId: string): Promise<UserOrder> {
   return db.transaction(async (tx) => {
-    // 1. Find the order
-    const orderResult = await tx
-      .select()
-      .from(orders)
-      .where(and(eq(orders.id, orderId), eq(orders.user_id, userId)))
-      .execute();
-
+    const orderResult = await tx.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.user_id, userId))).execute();
     const order = orderResult[0];
     if (!order) throw new Error("Order not found");
-    if (order.status === "cancelled")
-      throw new Error("Order already cancelled");
-    if (order.status === "completed")
-      throw new Error("Cannot cancel completed order");
+    if (order.status === "cancelled") throw new Error("Order already cancelled");
+    if (order.status === "completed") throw new Error("Cannot cancel completed order");
 
-    // 2. Get order items
-    const itemsResult = await tx
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.order_id, order.id))
-      .execute();
-
-    // 3. Restore stock
+    // Restore stock
+    const itemsResult = await tx.select().from(orderItems).where(eq(orderItems.order_id, order.id)).execute();
     for (const item of itemsResult) {
-      const productResult = await tx
-        .select()
-        .from(products)
-        .where(eq(products.id, item.product_id))
-        .execute();
-
+      const productResult = await tx.select().from(products).where(eq(products.id, item.product_id)).execute();
       const product = productResult[0];
       if (!product) continue;
-
-      await tx
-        .update(products)
-        .set({ stock: (product.stock ?? 0) + item.quantity })
-        .where(eq(products.id, product.id))
-        .execute();
+      await tx.update(products).set({ stock: (product.stock ?? 0) + item.quantity }).where(eq(products.id, product.id)).execute();
     }
 
-    const updatedOrders = await tx
-      .update(orders)
-      .set({ status: "cancelled" })
-      .where(eq(orders.id, order.id))
-      .returning()
-      .execute();
-
+    // Update order status
+    const updatedOrders = await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id)).returning().execute();
     const updatedOrder = updatedOrders[0];
-
-    const items = itemsResult.map((item) => ({
-      id: item.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      price: item.price,
-    }));
 
     return {
       id: updatedOrder.id,
@@ -361,7 +332,12 @@ export async function cancelOrder(
       status: updatedOrder.status,
       created_at: updatedOrder.created_at!,
       updated_at: updatedOrder.updated_at!,
-      items,
+      items: itemsResult.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+      })),
     };
   });
 }

@@ -5,37 +5,43 @@ import { AuthRequest } from "../middleware/auth.middleware.js";
 // Place order (from cart)
 export async function placeOrder(req: AuthRequest, res: Response) {
   try {
-    const { contact, shipping, shippingMethod, shippingCost } = req.body;
-    const result = await orderService.placeOrder(req.user!.id, { contact, shipping, shippingMethod, shippingCost });
+    const { addressId, contact, shipping, shippingMethod, shippingCost } = req.body;
+
+    const payload = {
+      userId: req.user!.id,
+      options: {
+        addressId,
+        contact,
+        shipping,
+        shippingMethod,
+        shippingCost,
+      },
+    };
+
+    const result = await orderService.placeOrder(payload);
     res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 }
-
 
 // Buy now (single product)
 export async function buyNow(req: AuthRequest, res: Response) {
   try {
-    const { product_id, quantity = 1, orderDetails } = req.body;
+    const { product_id, quantity = 1, addressId, contact, shipping, shippingMethod, shippingCost } = req.body;
 
-    if (!orderDetails) {
-      return res.status(400).json({ error: "Order details (contact & shipping) are required" });
+    if (!addressId && !(contact && shipping)) {
+      return res.status(400).json({ error: "Order details (address or contact+shipping) are required" });
     }
 
-    const result = await orderService.buyNow(
-      req.user!.id,
-      product_id,
-      quantity,
-      orderDetails
-    );
+    const options = { addressId, contact, shipping, shippingMethod, shippingCost };
 
+    const result = await orderService.buyNow(req.user!.id, product_id, quantity, options);
     res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 }
-
 
 // Get all user orders
 export async function getUserOrders(req: AuthRequest, res: Response) {
