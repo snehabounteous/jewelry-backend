@@ -26,8 +26,13 @@ export async function getDefaultAddress(userId: string) {
     .where(and(eq(addresses.user_id, userId), eq(addresses.is_default, true)))
     .limit(1)
     .execute();
-  return result[0] || null;
+
+  if (result[0]) return result[0];
+
+  const allAddresses = await getAddresses(userId);
+  return allAddresses[0] || null;
 }
+
 
 export async function addAddress(userId: string, data: AddressInput) {
   if (data.is_default) {
@@ -48,11 +53,23 @@ export async function updateAddress(userId: string, addressId: string, data: Add
     await db.update(addresses).set({ is_default: false }).where(eq(addresses.user_id, userId)).execute();
   }
 
-  const updated = await db.update(addresses)
-    .set({ ...data })
-    .where(eq(addresses.id, addressId))
-    .returning()
-    .execute();
+  const updated = await db
+  .update(addresses)
+  .set({
+    first_name: data.first_name,
+    last_name: data.last_name,
+    email: data.email,
+    phone: data.phone,
+    street_address: data.street_address,
+    city: data.city,
+    state: data.state,
+    zip: data.zip,
+    country: data.country,
+    is_default: data.is_default ?? false,
+  })
+  .where(eq(addresses.id, addressId))
+  .returning()
+  .execute();
 
   return updated[0];
 }
