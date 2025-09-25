@@ -51,23 +51,6 @@ export type UserOrder = {
 export async function placeOrder(payload: PlaceOrderPayload) {
   const { userId, options } = payload;
 
-<<<<<<< HEAD
-=======
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  street_address: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-  shipping_method: string;
-  shipping_cost: string;
-};
-
-export async function placeOrder(userId: string): Promise<OrderResult> {
->>>>>>> f5728da6504e931c63a6a9402ca2a589eb77db3f
   return db.transaction(async (tx) => {
     // 1️⃣ Get user's cart
     const cartResult = await tx
@@ -112,7 +95,6 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
         .execute();
     }
 
-<<<<<<< HEAD
     // 5️⃣ Determine address
     let address;
     if (options.addressId) {
@@ -150,40 +132,6 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
 
     // 6️⃣ Insert order with snapshot
     const [order] = await tx
-=======
-    // 5️⃣ Get user's default shipping address
-    const addressResult = await tx
-      .select()
-      .from(addresses)
-      .where(eq(addresses.user_id, userId))
-      .limit(1)
-      .execute();
-    const address = addressResult[0];
-    if (!address) throw new Error("No shipping address found");
-
-    // 6️⃣ Insert order
-    const orderValues: OrderInsertType = {
-      user_id: userId,
-      address_id: address.id,
-      total_amount: totalAmount.toString(),
-      status: "pending",
-
-      first_name: address.first_name,
-      last_name: address.last_name,
-      email: address.email,
-      phone: address.phone,
-      street_address: address.street_address,
-      city: address.city,
-      state: address.state,
-      zip: address.zip,
-      country: address.country,
-
-      shipping_method: "standard", // replace if frontend passes this
-      shipping_cost: "50", // numeric as string
-    };
-
-    const insertedOrders = await tx
->>>>>>> f5728da6504e931c63a6a9402ca2a589eb77db3f
       .insert(orders)
       .values({
         user_id: userId,
@@ -206,10 +154,6 @@ export async function placeOrder(userId: string): Promise<OrderResult> {
       })
       .returning()
       .execute();
-<<<<<<< HEAD
-=======
-    const order = insertedOrders[0];
->>>>>>> f5728da6504e931c63a6a9402ca2a589eb77db3f
 
     // 7️⃣ Insert order items
     for (const row of itemsResult) {
