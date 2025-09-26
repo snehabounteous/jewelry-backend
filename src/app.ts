@@ -9,6 +9,8 @@ import categoriesRoutes from "./routes/categories.routes.js"
 import orderRoutes from "./routes/order.routes.js"
 import searchFilterRoutes from "./routes/search_filter.routes.js";
 import addressRoutes from "./routes/address.routes.js";
+import stripeRoutes from "./routes/stripe.routes.js";
+import { createPaymentIntent } from "./controller/stripe.controller.js";
 
 const app = express();
 app.use(
@@ -28,6 +30,15 @@ app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/order", orderRoutes);
 app.use("/api/v1/search", searchFilterRoutes);
 app.use("/api/v1/address", addressRoutes);
+app.get("/test", async (_req, res) => {
+  try {
+    const result = await db.execute(`SELECT 1 AS test;`);
+    res.json({ result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Database query failed");
+  }
+});
 
 app.get("/", async (_req, res) => {
   try {
