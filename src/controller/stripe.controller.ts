@@ -14,27 +14,26 @@ export interface CreatePaymentIntentRequest {
 }
 
 export const createPaymentIntent = async (
-    req: Request,
-//   req: Request<{}, {}, CreatePaymentIntentRequest>,
+    
+  req: Request<{}, {}, CreatePaymentIntentRequest>,
   res: Response
 ) => {
-//   try {
-    return res.json("hi")
-    // const { amount, currency } = req.body;
+  try {
+    const { amount, currency } = req.body;
 
-//     if (!amount || !currency) {
-//       return res.status(400).json({ error: "Amount and currency are required" });
-//     }
+    if (!amount || !currency) {
+      return res.status(400).json({ error: "Amount and currency are required" });
+    }
 
-//     const paymentIntent = await stripe.paymentIntents.create({
-//       amount,
-//       currency,
-//       automatic_payment_methods: { enabled: true },
-//     });
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      automatic_payment_methods: { enabled: true },
+    });
 
-//     return res.json({ clientSecret: paymentIntent.client_secret });
-//   } catch (err) {
-//     const error = err as Error;
-//     return res.status(400).json({ error: error.message });
-//   }
+    return res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    const error = err as Error;
+    return res.status(400).json({ error: error.message });
+  }
 };

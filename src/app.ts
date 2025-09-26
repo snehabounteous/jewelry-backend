@@ -30,15 +30,7 @@ app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/order", orderRoutes);
 app.use("/api/v1/search", searchFilterRoutes);
 app.use("/api/v1/address", addressRoutes);
-app.get("/test", async (_req, res) => {
-  try {
-    const result = await db.execute(`SELECT 1 AS test;`);
-    res.json({ result });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Database query failed");
-  }
-});
+app.use("/api/v1/stripe", stripeRoutes);
 
 app.get("/", async (_req, res) => {
   try {
