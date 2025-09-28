@@ -2,7 +2,8 @@
 import { db } from "../config/db.js";
 import { products } from "../models/products.model.js";
 import { productImages } from "../models/productImages.model.js";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { reviews } from "../models/review.model.js";
 
 export class ProductService {
   // ✅ Create a product
@@ -112,4 +113,25 @@ export class ProductService {
 
     return deleted;
   }
+
+  static async getAllProductsWithImagesAndReviews() {
+  return await db
+    .select({
+      id: products.id,
+      name: products.name,
+      description: products.description,
+      price: products.price,
+      category_id: products.category_id,
+      stock: products.stock,
+      created_at: products.created_at,
+      updated_at: products.updated_at,
+      images: sql`coalesce(json_agg(distinct ${productImages}.*) filter (where ${productImages.id} is not null), '[]')`.as("images"),
+      reviews: sql`coalesce(json_agg(distinct ${reviews}.*) filter (where ${reviews.id} is not null), '[]')`.as("reviews"),
+    })
+    .from(products)
+    .leftJoin(productImages, eq(products.id, productImages.product_id))
+    .leftJoin(reviews, eq(products.id, reviews.product_id))
+    .groupBy(products.id);
+}
+
 }

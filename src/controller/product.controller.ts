@@ -51,4 +51,12 @@ export class ProductController {
       res.status(500).json({ message: "Error deleting product", error: err });
     }
   }
+  static async getAllProductsWithImagesAndReviews(req: Request, res: Response) {
+    try {
+      const products = await ProductService.getAllProductsWithImagesAndReviews();
+      res.json(products);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching products", error: err });
+    }
+  }
 }
