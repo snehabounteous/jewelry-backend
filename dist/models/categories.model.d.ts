@@ -53,6 +53,23 @@ export declare const categories: import("drizzle-orm/pg-core").PgTableWithColumn
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        image: import("drizzle-orm/pg-core").PgColumn<{
+            name: "image";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         slug: import("drizzle-orm/pg-core").PgColumn<{
             name: "slug";
             tableName: "categories";

@@ -51,12 +51,27 @@ export class ProductController {
       res.status(500).json({ message: "Error deleting product", error: err });
     }
   }
+<<<<<<< HEAD
   static async getAllProductsWithImagesAndReviews(req: Request, res: Response) {
     try {
       const products = await ProductService.getAllProductsWithImagesAndReviews();
       res.json(products);
     } catch (err) {
       res.status(500).json({ message: "Error fetching products", error: err });
+=======
+  static async getProductsByCategory(req: Request, res: Response) {
+    try {
+      const { categoryId } = req.params;
+      if (!categoryId) {
+        return res.status(400).json({ message: "Category ID is required" });
+      }
+
+      const products = await ProductService.getProductsByCategory(categoryId);
+      return res.status(200).json(products);
+    } catch (err) {
+      console.error("Error fetching products by category:", err);
+      return res.status(500).json({ message: "Internal server error" });
+>>>>>>> fd6864b85aa4f937ebfad3fda233276d625a2807
     }
   }
 }

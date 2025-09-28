@@ -114,6 +114,7 @@ export class ProductService {
     return deleted;
   }
 
+<<<<<<< HEAD
   static async getAllProductsWithImagesAndReviews() {
   return await db
     .select({
@@ -134,4 +135,27 @@ export class ProductService {
     .groupBy(products.id);
 }
 
+=======
+  static async getProductsByCategory(categoryId: string) {
+  // Get all products in this category
+  const productRows = await db
+    .select()
+    .from(products)
+    .where(eq(products.category_id, categoryId));
+
+  // Fetch images for each product
+  const productsWithImages = await Promise.all(
+    productRows.map(async (product) => {
+      const images = await db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.product_id, product.id));
+      return { ...product, images };
+    })
+  );
+
+  return productsWithImages;
+>>>>>>> fd6864b85aa4f937ebfad3fda233276d625a2807
 }
+}
+
