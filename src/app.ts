@@ -16,12 +16,11 @@ import paymentRoutes from "./routes/payment.routes.js";
 
 
 const app = express();
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-    credentials: true, 
-  })
-);
+app.use(cors({
+  origin: ['https://jewelry-frontend-gqvn.onrender.com'], // add all frontend domains you use
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // if you need cookies/auth headers
+}));
 app.use(express.json());
 app.use(cookieParser());
 
