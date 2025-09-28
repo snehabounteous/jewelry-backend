@@ -8,14 +8,18 @@ import wishlistRoutes from "./routes/wishlist.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import searchFilterRoutes from "./routes/search_filter.routes.js";
-import reviewRoutes from "./routes/review.routes.js";
 import addressRoutes from "./routes/address.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
+import cookieParser from "cookie-parser";
+import stripeRoutes from "./routes/stripe.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 const app = express();
 app.use(cors({
     origin: "http://localhost:3000",
     credentials: true,
 }));
 app.use(express.json());
+app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/cart", cartRoutes);
@@ -23,8 +27,10 @@ app.use("/api/v1/wishlist", wishlistRoutes);
 app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/order", orderRoutes);
 app.use("/api/v1/search", searchFilterRoutes);
-app.use("/api/v1/review", reviewRoutes);
 app.use("/api/v1/address", addressRoutes);
+app.use("/api/v1/review", reviewRoutes);
+app.use("/api/v1/stripe", stripeRoutes);
+app.use("/api/v1/payment", paymentRoutes);
 app.get("/", async (_req, res) => {
     try {
         const result = await db.execute(`SELECT 1 AS test;`);

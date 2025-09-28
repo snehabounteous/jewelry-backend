@@ -11,6 +11,8 @@ import searchFilterRoutes from "./routes/search_filter.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import reviewRoutes from "./routes/review.routes.js"
 import cookieParser from "cookie-parser";
+import stripeRoutes from "./routes/stripe.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 
 
 const app = express();
@@ -33,6 +35,8 @@ app.use("/api/v1/order", orderRoutes);
 app.use("/api/v1/search", searchFilterRoutes);
 app.use("/api/v1/address", addressRoutes);
 app.use("/api/v1/review", reviewRoutes);
+app.use("/api/v1/stripe", stripeRoutes);
+app.use("/api/v1/payment", paymentRoutes);
 
 app.get("/", async (_req, res) => {
   try {

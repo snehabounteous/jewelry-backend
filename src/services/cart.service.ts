@@ -1,10 +1,15 @@
 import { db } from "../config/db.js";
 import { carts, cart_items } from "../models/cart.model.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { products } from "../models/products.model.js";
 
 export async function getUserCart(userId: string) {
-  const cartResult = await db.select().from(carts).where(eq(carts.user_id, userId)).execute();
+  const cartResult = await db
+    .select()
+    .from(carts)
+    .where(eq(carts.user_id, userId))
+    .execute();
+
   const cart = cartResult[0];
   if (!cart) return { items: [] };
 
@@ -12,14 +17,26 @@ export async function getUserCart(userId: string) {
     .select({
       id: cart_items.id,
       quantity: cart_items.quantity,
-      product: products, 
+      product: {
+        id: products.id,
+        name: products.name,
+        description: products.description,
+        price: products.price,
+        // 👇 use subquery to grab first image
+        image: sql`(
+          SELECT url 
+          FROM product_images 
+          WHERE product_images.product_id = ${products.id}
+          LIMIT 1
+        )`.as("image"),
+      },
     })
     .from(cart_items)
     .leftJoin(products, eq(cart_items.product_id, products.id))
     .where(eq(cart_items.cart_id, cart.id))
     .execute();
 
-  const items = itemsResult.map(row => ({
+  const items = itemsResult.map((row) => ({
     id: row.id,
     quantity: row.quantity,
     product: row.product,
@@ -27,6 +44,7 @@ export async function getUserCart(userId: string) {
 
   return { ...cart, items };
 }
+
 
 export async function addToCart(userId: string, productId: string, quantity: number) {
   if (quantity <= 0) throw new Error("Quantity must be greater than zero");

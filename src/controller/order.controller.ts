@@ -2,12 +2,51 @@ import { Request, Response } from "express";
 import * as orderService from "../services/order.service.js";
 import { AuthRequest } from "../middleware/auth.middleware.js";
 
+type PlaceOrderPayload = {
+  userId: string;
+  options: {
+    addressId?: string;
+    contact?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
+    shipping?: {
+      address: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    setDefault?: boolean;
+    shippingMethod: string;
+    shippingCost: number;
+    payment?: {
+      id: string;
+      method: string;
+      amount: number;
+      currency: string;
+      status: string;
+      metadata?: any;
+    };
+  };
+};
+
 // Place order (from cart)
 export async function placeOrder(req: AuthRequest, res: Response) {
   try {
-    const { addressId, contact, shipping, shippingMethod, shippingCost } = req.body;
+    const {
+      addressId,
+      contact,
+      shipping,
+      shippingMethod,
+      shippingCost,
+      setDefault,
+      payment,
+    } = req.body;
 
-    const payload = {
+    const payload: PlaceOrderPayload = {
       userId: req.user!.id,
       options: {
         addressId,
@@ -15,6 +54,8 @@ export async function placeOrder(req: AuthRequest, res: Response) {
         shipping,
         shippingMethod,
         shippingCost,
+        setDefault,
+        payment, // ← include payment object from frontend
       },
     };
 
@@ -25,16 +66,27 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
 }
 
+
 // Buy now (single product)
 export async function buyNow(req: AuthRequest, res: Response) {
   try {
-    const { product_id, quantity = 1, addressId, contact, shipping, shippingMethod, shippingCost } = req.body;
+    const {
+      product_id,
+      quantity = 1,
+      addressId,
+      contact,
+      shipping,
+      shippingMethod,
+      shippingCost,
+      setDefault,
+      payment,
+    } = req.body;
 
     if (!addressId && !(contact && shipping)) {
       return res.status(400).json({ error: "Order details (address or contact+shipping) are required" });
     }
 
-    const options = { addressId, contact, shipping, shippingMethod, shippingCost };
+    const options = { addressId, contact, shipping, shippingMethod, shippingCost, setDefault, payment };
 
     const result = await orderService.buyNow(req.user!.id, product_id, quantity, options);
     res.json(result);
@@ -42,6 +94,7 @@ export async function buyNow(req: AuthRequest, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
+
 
 // Get all user orders
 export async function getUserOrders(req: AuthRequest, res: Response) {
