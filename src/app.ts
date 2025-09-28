@@ -10,6 +10,8 @@ import orderRoutes from "./routes/order.routes.js"
 import searchFilterRoutes from "./routes/search_filter.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import reviewRoutes from "./routes/review.routes.js"
+import cookieParser from "cookie-parser";
+
 
 const app = express();
 app.use(
@@ -19,6 +21,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 
 app.use("/api/v1/auth", authRoutes)

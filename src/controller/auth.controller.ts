@@ -19,28 +19,34 @@ export async function register(req: Request, res: Response) {
   }
 }
 
+// --- Login: sets both tokens in httpOnly cookies
 export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
     const { user, accessToken, refreshToken } = await authService.loginUser(email, password);
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "strict", 
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
-    });
-
-    
-    res.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      accessToken,
-    });
+    // set both access and refresh tokens as httpOnly cookies
+    res
+      .cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000, // 15 min
+      })
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      })
+      .json({
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
   } catch (err: unknown) {
     if (err instanceof Error) {
       res.status(401).json({ error: err.message });
@@ -50,6 +56,7 @@ export async function login(req: Request, res: Response) {
   }
 }
 
+// --- Refresh access token using httpOnly refreshToken cookie
 export async function refreshToken(req: Request, res: Response) {
   try {
     const token = req.cookies.refreshToken;
@@ -66,7 +73,14 @@ export async function refreshToken(req: Request, res: Response) {
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN } as SignOptions
     );
 
-    res.json({ accessToken });
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000, // 15 min
+    });
+
+    res.json({ message: "Access token refreshed" });
   } catch (err: unknown) {
     if (err instanceof Error) {
       res.status(401).json({ error: err.message });
@@ -75,19 +89,14 @@ export async function refreshToken(req: Request, res: Response) {
     }
   }
 }
+
+// --- Get current user using accessToken from cookie
 export async function getCurrentUser(req: Request, res: Response) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: "No token provided" });
-    }
+    const token = req.cookies.accessToken;
+    if (!token) return res.status(401).json({ error: "No access token provided" });
 
-    const token = authHeader.split(" ")[1]; 
-    if (!token) {
-      return res.status(401).json({ error: "Malformed token" });
-    }
-
-    const decoded: any = authService.verifyAccessToken(token); 
+    const decoded: any = authService.verifyAccessToken(token);
     const userId = decoded.id;
 
     const [user] = await db.select().from(users).where(eq(users.id, userId));
@@ -102,27 +111,29 @@ export async function getCurrentUser(req: Request, res: Response) {
       },
     });
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      return res.status(401).json({ error: err.message });
-    }
+    if (err instanceof Error) return res.status(401).json({ error: err.message });
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+
+// --- Logout: clear both cookies
 export async function logout(req: Request, res: Response) {
   try {
-    // clear refresh token cookie
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    res
+      .clearCookie("accessToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      })
+      .clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
 
     res.json({ message: "Logged out successfully" });
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.status(500).json({ error: "Unknown error" });
-    }
+    if (err instanceof Error) res.status(500).json({ error: err.message });
+    else res.status(500).json({ error: "Unknown error" });
   }
 }
