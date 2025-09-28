@@ -114,7 +114,6 @@ export class ProductService {
     return deleted;
   }
 
-<<<<<<< HEAD
   static async getAllProductsWithImagesAndReviews() {
   return await db
     .select({
@@ -135,27 +134,24 @@ export class ProductService {
     .groupBy(products.id);
 }
 
-=======
-  static async getProductsByCategory(categoryId: string) {
-  // Get all products in this category
-  const productRows = await db
-    .select()
-    .from(products)
-    .where(eq(products.category_id, categoryId));
-
-  // Fetch images for each product
-  const productsWithImages = await Promise.all(
-    productRows.map(async (product) => {
-      const images = await db
-        .select()
-        .from(productImages)
-        .where(eq(productImages.product_id, product.id));
-      return { ...product, images };
+static async getProductByCategoryWithImagesAndReviews(categoryId: string) {
+  return await db
+    .select({
+      id: products.id,
+      name: products.name,
+      description: products.description,
+      price: products.price,
+      category_id: products.category_id,
+      stock: products.stock,
+      created_at: products.created_at,
+      updated_at: products.updated_at,
+      images: sql`coalesce(json_agg(distinct ${productImages}.*) filter (where ${productImages.id} is not null), '[]')`.as("images"),
+      reviews: sql`coalesce(json_agg(distinct ${reviews}.*) filter (where ${reviews.id} is not null), '[]')`.as("reviews"),
     })
-  );
-
-  return productsWithImages;
->>>>>>> fd6864b85aa4f937ebfad3fda233276d625a2807
+    .from(products)
+    .leftJoin(productImages, eq(products.id, productImages.product_id))
+    .leftJoin(reviews, eq(products.id, reviews.product_id))
+    .where(eq(products.category_id, categoryId))
+    .groupBy(products.id);
 }
 }
-
