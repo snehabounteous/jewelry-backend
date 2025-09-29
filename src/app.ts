@@ -19,6 +19,7 @@ const app = express();
 app.use(cors({
   origin: ['https://jewelry-frontend-gqvn.onrender.com'], // add all frontend domains you use
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true, // if you need cookies/auth headers
 }));
 app.use(express.json());
